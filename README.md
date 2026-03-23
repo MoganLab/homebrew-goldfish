@@ -1,16 +1,9 @@
 # MoganLab Goldfish
 
-## How do I install these formulae?
-
-`brew install moganlab/goldfish/<formula>`
-
-Or `brew tap moganlab/goldfish` and then `brew install <formula>`.
-
-Or, in a `brew bundle` `Brewfile`:
-
-```ruby
-tap "moganlab/goldfish"
-brew "<formula>"
+## How do I install these goldfish?
+```
+brew tap MoganLab/goldfish
+brew install goldfish
 ```
 
 ## Documentation
