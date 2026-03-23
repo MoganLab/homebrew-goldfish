@@ -14,19 +14,17 @@ class Goldfish < Formula
     ENV["CC"] = ENV.cc
     ENV["CXX"] = ENV.cxx
 
-    # 2. 配置 xmake
-    # 这里的 --prefix=#{prefix} 会自动映射到你 xmake.lua 里的 prefixdir
-    # 例如你的 share/goldfish 会自动变成 /opt/homebrew/Cellar/goldfish/版本号/share/goldfish
-    # system "xmake", "config", "--yes", "--mode=release", "--prefix=#{prefix}"
-
-    # 3. 编译
+    # 2. 编译
+    system "xmake", "config", "--yes", "--mode=release"
     system "xmake", "build", "goldfish"
 
-    # 4. 执行安装逻辑
-    # 这一步会根据你的 xmake.lua 自动安装 bin/gf 和所有的 .scm 文件
-    # system "xmake", "install", "-y"
-    
-    # 5. 可选：建立软链接 (如果你希望用户输入 goldfish 也能运行)
+    # 3. 安装
+    # bin.install "bin/gf"
+    # (share/"goldfish").mkpath
+    # (share/"goldfish").install "goldfish"
+    system "xmake", "install", "-y", "-o", prefix
+
+    # 4. 创建符号链接，方便用户使用 `gf` 命令
     bin.install_symlink "gf" => "goldfish"
   end
 
