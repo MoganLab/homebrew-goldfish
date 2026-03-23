@@ -10,10 +10,26 @@ class Goldfish < Formula
   head "https://github.com/MoganLab/goldfish.git", branch: "main"
 
   depends_on "xmake" => :build
-  depends_on "gcc" => :build
+  depends_on "cmake" => :build
+  depends_on "ninja" => :build
 
   def install
-    system "xmake", "config", "--mode=release"
+    # Use Homebrew's build environment
+    ENV.deparallelize
+    
+    # Set compiler environment variables for both xmake and cmake
+    ENV["CC"] = ENV.cc
+    ENV["CXX"] = ENV.cxx
+    ENV["CMAKE_C_COMPILER"] = ENV.cc
+    ENV["CMAKE_CXX_COMPILER"] = ENV.cxx
+    
+    # Configure xmake with explicit compiler settings
+    system "xmake", "config", 
+           "--mode=release",
+           "--cc=#{ENV.cc}",
+           "--cxx=#{ENV.cxx}",
+           "--buildir=build"
+    
     system "xmake", "build", "goldfish"
     
     bin.install "bin/gf"
