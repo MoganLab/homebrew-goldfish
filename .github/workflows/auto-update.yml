@@ -10,6 +10,8 @@ on:
 jobs:
   update-formula:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,3 +55,5 @@ jobs:
           git add Formula/goldfish.rb
           git commit -m "chore: update goldfish to v${{ steps.check.outputs.new_version }}"
           git push -u origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
