@@ -1,8 +1,8 @@
 class Goldfish < Formula
   desc "A practical Scheme interpreter based on S7"
   homepage "https://github.com/MoganLab/goldfish"
-  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v17.11.37.tar.gz"
-  sha256 "cc13aad9d96ab128f6b8517585444c5a88df06689419a42178722f9e7e1b0137"
+  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v17.11.50.tar.gz"
+  sha256 "b07549cb812695950fdc326cf259c2af7099c9aa13c32e39d7e08273b66e6468"
   license "Apache-2.0"
 
   depends_on "xmake" => :build
