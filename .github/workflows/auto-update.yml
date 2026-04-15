@@ -52,4 +52,4 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add Formula/goldfish.rb
           git commit -m "chore: update goldfish to v${{ steps.check.outputs.new_version }}"
-          git push
+          git push -u origin main
