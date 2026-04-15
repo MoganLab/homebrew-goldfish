@@ -1,0 +1,55 @@
+name: Update Goldfish Formula
+
+on:
+  watch:
+    types: [started]
+  # schedule:
+  #   - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
+      - name: Check for updates
+        id: check
+        run: |
+          VERSION=$(curl -sL https://api.github.com/repos/MoganLab/goldfish/releases/latest | jq -r '.tag_name // "" | ltrimstr("v")')
+          CURRENT_VERSION=$(grep 'url.*v' Formula/goldfish.rb | sed 's/.*v\([0-9.]*\).*/\1/')
+          
+          if [ "$VERSION" != "$CURRENT_VERSION" ]; then
+            echo "update_available=true" >> $GITHUB_OUTPUT
+            echo "new_version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "update_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download and calculate sha256
+        if: steps.check.outputs.update_available == 'true'
+        id: sha
+        run: |
+          curl -sL https://github.com/MoganLab/goldfish/archive/refs/tags/v${{ steps.check.outputs.new_version }}.tar.gz -o /tmp/goldfish.tar.gz
+          SHA256=$(shasum -a 256 /tmp/goldfish.tar.gz | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Update formula
+        if: steps.check.outputs.update_available == 'true'
+        run: |
+          NEW_VERSION=${{ steps.check.outputs.new_version }}
+          sed -i "s|https://github.com/MoganLab/goldfish/archive/refs/tags/v[0-9.]*.tar.gz|https://github.com/MoganLab/goldfish/archive/refs/tags/v${NEW_VERSION}.tar.gz|" Formula/goldfish.rb
+          sed -i "s| sha256 \".*\"| sha256 \"${{ steps.sha.outputs.sha256 }}\"|" Formula/goldfish.rb
+
+      - name: Commit and push
+        if: steps.check.outputs.update_available == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add Formula/goldfish.rb
+          git commit -m "chore: update goldfish to v${{ steps.check.outputs.new_version }}"
+          git push
