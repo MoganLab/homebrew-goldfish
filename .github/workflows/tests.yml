@@ -10,8 +10,20 @@ jobs:
   test-bot:
     strategy:
       matrix:
-        os: [ ubuntu-22.04, macos-15-intel, macos-26 ]
+        # macos-26 (arm64)：上游发布预编译二进制的主平台。
+        # ubuntu-24.04：Linux 源码编译验证（glibc 2.39，不触发 Tier 2 告警）。
+        # macos-15-intel：Intel Mac 源码编译验证；其 cleanup 阶段 purge /usr/local
+        #   偏慢，故给 120 分钟超时（其余平台 60 分钟）。
+        include:
+          - os: macos-26
+            timeout_minutes: 5
+          - os: ubuntu-24.04
+            timeout_minutes: 5
+          - os: macos-15-intel
+            timeout_minutes: 10 # cleanup 阶段 purge /usr/local 偏慢，多给一倍
+      fail-fast: false
     runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     permissions:
       actions: read
       checks: read
