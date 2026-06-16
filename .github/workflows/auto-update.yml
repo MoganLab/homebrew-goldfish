@@ -3,8 +3,9 @@ name: Update Goldfish Formula
 on:
   watch:
     types: [started]
-  # schedule:
-  #   - cron: '0 0 * * 0'
+  schedule:
+    # 每周一 03:17 UTC 检查上游 release（避开整点，减少并发）
+    - cron: '17 3 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -15,44 +16,97 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 完整历史，便于 commit 前与 origin/main rebase
 
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@main
-
-      - name: Check for updates
+      - name: Determine latest upstream version
         id: check
         run: |
+          # 上游最新 release tag（去掉 v 前缀）
           VERSION=$(curl -sL https://api.github.com/repos/MoganLab/goldfish/releases/latest | jq -r '.tag_name // "" | ltrimstr("v")')
-          CURRENT_VERSION=$(grep 'url.*v' Formula/goldfish.rb | sed 's/.*v\([0-9.]*\).*/\1/')
-          
-          if [ "$VERSION" != "$CURRENT_VERSION" ]; then
-            echo "update_available=true" >> $GITHUB_OUTPUT
-            echo "new_version=$VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "update_available=false" >> $GITHUB_OUTPUT
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "无法获取上游最新版本，退出"
+            exit 1
           fi
 
-      - name: Download and calculate sha256
+          # 当前 formula 里已记录的版本（取 arm64 二进制 url 里的版本号）
+          CURRENT_VERSION=$(grep -oP 'goldfish-scheme-arm64-v\K[0-9.]+' Formula/goldfish.rb | head -1)
+
+          echo "upstream=$VERSION current=$CURRENT_VERSION"
+          echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$VERSION" != "$CURRENT_VERSION" ]; then
+            echo "update_available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update_available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify macOS arm64 binary asset exists
+        id: asset
         if: steps.check.outputs.update_available == 'true'
-        id: sha
         run: |
-          curl -sL https://github.com/MoganLab/goldfish/archive/refs/tags/v${{ steps.check.outputs.new_version }}.tar.gz -o /tmp/goldfish.tar.gz
-          SHA256=$(shasum -a 256 /tmp/goldfish.tar.gz | awk '{print $1}')
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          # 关键防御：只有上游真的发布了 arm64 darwin 二进制，才更新 formula。
+          # 否则（上游 CI 还没合并/没跑出来）就跳过，避免 formula 指向 404 资产。
+          # 用 HEAD 请求（-IL）避免下载整个包体；超时 15s 防止卡死。
+          VERSION="${{ steps.check.outputs.new_version }}"
+          ASSET="goldfish-scheme-arm64-v${VERSION}-darwin.tar.gz"
+          STATUS=$(curl -sIL --max-time 15 -o /dev/null -w "%{http_code}" \
+            "https://github.com/MoganLab/goldfish/releases/download/v${VERSION}/${ASSET}")
+          echo "asset http status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::上游 v${VERSION} 还没有 macOS arm64 二进制资产（${ASSET}，HTTP ${STATUS}），跳过本次更新"
+            echo "binary_ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary_ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download assets and calculate sha256
+        id: sha
+        if: steps.asset.outputs.binary_ready == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+
+          # 1. arm64 darwin 预编译二进制
+          curl -fsSL "https://github.com/MoganLab/goldfish/releases/download/v${VERSION}/goldfish-scheme-arm64-v${VERSION}-darwin.tar.gz" \
+            -o /tmp/gf-darwin.tar.gz
+          ARM_SHA=$(sha256sum /tmp/gf-darwin.tar.gz | awk '{print $1}')
+          echo "arm_sha=$ARM_SHA" >> "$GITHUB_OUTPUT"
+
+          # 2. Intel 回退用的源码 tarball
+          curl -fsSL "https://github.com/MoganLab/goldfish/archive/refs/tags/v${VERSION}.tar.gz" \
+            -o /tmp/gf-src.tar.gz
+          SRC_SHA=$(sha256sum /tmp/gf-src.tar.gz | awk '{print $1}')
+          echo "src_sha=$SRC_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Update formula
-        if: steps.check.outputs.update_available == 'true'
+        if: steps.asset.outputs.binary_ready == 'true'
         run: |
-          NEW_VERSION=${{ steps.check.outputs.new_version }}
-          sed -i "s|https://github.com/MoganLab/goldfish/archive/refs/tags/v[0-9.]*.tar.gz|https://github.com/MoganLab/goldfish/archive/refs/tags/v${NEW_VERSION}.tar.gz|" Formula/goldfish.rb
-          sed -i "s| sha256 \".*\"| sha256 \"${{ steps.sha.outputs.sha256 }}\"|" Formula/goldfish.rb
+          VERSION="${{ steps.check.outputs.new_version }}"
+
+          # url + 紧随其后的 sha256 成对替换，避免两个同缩进的 sha256 互相干扰。
+          # arm64 二进制（url 含 darwin.tar.gz）
+          perl -0pi -e "s{releases/download/v[0-9.]+/goldfish-scheme-arm64-v[0-9.]+-darwin\\.tar\\.gz\"\n(\\s*)sha256 \"[0-9a-f]{64}\"}{releases/download/v${VERSION}/goldfish-scheme-arm64-v${VERSION}-darwin.tar.gz\"\n\$1sha256 \"${{ steps.sha.outputs.arm_sha }}\"}g" Formula/goldfish.rb
+
+          # Intel 源码（url 含 archive/refs/tags）
+          perl -0pi -e "s{archive/refs/tags/v[0-9.]+\\.tar\\.gz\"\n(\\s*)sha256 \"[0-9a-f]{64}\"}{archive/refs/tags/v${VERSION}.tar.gz\"\n\$1sha256 \"${{ steps.sha.outputs.src_sha }}\"}g" Formula/goldfish.rb
+
+          echo "=== 更新后的 formula url/sha256 ==="
+          grep -nE 'url |sha256 ' Formula/goldfish.rb
+
+      - name: Verify formula syntax
+        if: steps.asset.outputs.binary_ready == 'true'
+        run: |
+          # 简单语法校验：ruby 能正常解析 formula
+          ruby -c Formula/goldfish.rb
 
       - name: Commit and push
-        if: steps.check.outputs.update_available == 'true'
+        if: steps.asset.outputs.binary_ready == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add Formula/goldfish.rb
           git commit -m "chore: update goldfish to v${{ steps.check.outputs.new_version }}"
-          git push -u origin main
+          # cron 与手动触发可能并发，先与远端同步再 push，避免 non-fast-forward 失败
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push
