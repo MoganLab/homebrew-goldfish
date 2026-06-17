@@ -1,37 +1,41 @@
 class Goldfish < Formula
   desc "Practical Scheme interpreter based on S7"
   homepage "https://github.com/MoganLab/goldfish"
-  # 顶层 url 直接是 arm64 macOS 预编译二进制包（Apple Silicon 是绝大多数用户）。
-  # 这样 brew 探测版本/触发 brew upgrade 走的就是这条 url，不会被 on_system 覆盖层挡住。
-  # Intel Mac 与 Linux 在下面 on_intel / on_linux block 里覆盖为源码包（从源码编译）。
-  url "https://github.com/MoganLab/goldfish/releases/download/v18.11.11/goldfish-scheme-arm64-v18.11.11-darwin.tar.gz"
-  sha256 "318b29c67d9db1cc30a9430a91666f03f2f71cf7ea99cf443f265bc674ee9a1e"
+  # 顶层源码包：作为 Intel Mac 与 Linux 的默认（从源码编译）。
+  # arm64 macOS 在下面的 on_macos > on_arm 中覆盖为预编译二进制。
+  # 注：Homebrew 规则下只有 on_macos/on_arm 能覆盖 url，on_intel/on_linux 不能，
+  # 故顶层必须用跨平台成立的源码包，arm64 二进制走覆盖。
+  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.11.tar.gz"
+  sha256 "4552277a458f98865c184f1711ed80ab4f330a0b8de246741e02f60bdac2b5cc"
   license "Apache-2.0"
 
-  # Apple Silicon 走预编译二进制，无需构建依赖；仅 Intel Mac / Linux 编译时才需要。
-  on_intel do
-    depends_on "cmake" => :build # 用于编译 cpr, json_schema_validator 等依赖
-    depends_on "ninja" => :build
-    depends_on "xmake" => :build
+  # 让 brew 用 GitHub 最新 release 来探测版本。
+  # 顶层 url 是 archive 源码包，brew 默认无法可靠从中探测版本，导致
+  # brew upgrade goldfish 误判为已是最新（no-op）。livecheck 指向 release 后，
+  # brew 能正确识别新版本，配合 on_arm 覆盖的 arm64 二进制 url 完成升级。
+  livecheck do
+    url :stable
+    strategy :github_latest
   end
+
+  # Apple Silicon：使用上游发布的预编译二进制包（秒装，无需编译依赖）。
+  # Intel Mac 在同一 block 的 on_intel 里声明从源码编译所需的构建依赖。
+  on_macos do
+    on_arm do
+      url "https://github.com/MoganLab/goldfish/releases/download/v18.11.11/goldfish-scheme-arm64-v18.11.11-darwin.tar.gz"
+      sha256 "318b29c67d9db1cc30a9430a91666f03f2f71cf7ea99cf443f265bc674ee9a1e"
+    end
+    on_intel do
+      depends_on "cmake" => :build # 用于编译 cpr, json_schema_validator 等依赖
+      depends_on "ninja" => :build
+      depends_on "xmake" => :build
+    end
+  end
+
   on_linux do
     depends_on "cmake" => :build
     depends_on "ninja" => :build
     depends_on "xmake" => :build
-  end
-
-  # Intel Mac：使用上游源码 tarball 从源码编译
-  on_macos do
-    on_intel do
-      url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.11.tar.gz"
-      sha256 "4552277a458f98865c184f1711ed80ab4f330a0b8de246741e02f60bdac2b5cc"
-    end
-  end
-
-  # Linux：同样使用上游源码 tarball 从源码编译
-  on_linux do
-    url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.11.tar.gz"
-    sha256 "4552277a458f98865c184f1711ed80ab4f330a0b8de246741e02f60bdac2b5cc"
   end
 
   def install
@@ -54,13 +58,6 @@ class Goldfish < Formula
 
     # 创建符号链接，方便用户使用 `goldfish` 命令
     bin.install_symlink "gf" => "goldfish"
-  end
-
-  # 让 brew 用 GitHub 最新 release 来探测版本，配合顶层 arm64 url，
-  # brew upgrade goldfish 能立刻识别到新版本。
-  livecheck do
-    url :stable
-    strategy :github_latest
   end
 
   test do
