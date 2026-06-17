@@ -3,8 +3,8 @@ class Goldfish < Formula
   homepage "https://github.com/MoganLab/goldfish"
   # 顶层源码包：作为 Intel Mac 与 Linux 的默认（从源码编译）。
   # arm64 macOS 在下面的 on_arm block 中覆盖为预编译二进制。
-  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.10.tar.gz"
-  sha256 "53c31270d262d140798f370dd198fa86379ef85ac8f9bf2f089ec4f30f1a4ca5"
+  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.11.tar.gz"
+  sha256 "4552277a458f98865c184f1711ed80ab4f330a0b8de246741e02f60bdac2b5cc"
   license "Apache-2.0"
 
   depends_on "cmake" => :build # 用于编译 cpr, json_schema_validator 等依赖
@@ -14,8 +14,8 @@ class Goldfish < Formula
   # Apple Silicon：使用上游发布的预编译二进制包（秒装，无需编译依赖）
   on_macos do
     on_arm do
-      url "https://github.com/MoganLab/goldfish/releases/download/v18.11.10/goldfish-scheme-arm64-v18.11.10-darwin.tar.gz"
-      sha256 "8256fb6c31b1752b75a463b857be7d29b497e5d317cddc1f7bea98639cb6d929"
+      url "https://github.com/MoganLab/goldfish/releases/download/v18.11.11/goldfish-scheme-arm64-v18.11.11-darwin.tar.gz"
+      sha256 "318b29c67d9db1cc30a9430a91666f03f2f71cf7ea99cf443f265bc674ee9a1e"
     end
   end
 
