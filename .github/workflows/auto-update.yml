@@ -4,8 +4,8 @@ on:
   watch:
     types: [started]
   schedule:
-    # 每天 00:00 UTC（北京时间 08:00）运行一次
-    - cron: '0 0 * * *'
+    # 每天 23:47 UTC（北京时间 07:47）运行一次（避开整点高峰）
+    - cron: '47 23 * * *'
   workflow_dispatch:
 
 jobs:
