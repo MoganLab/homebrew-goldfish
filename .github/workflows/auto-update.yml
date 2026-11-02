@@ -4,8 +4,10 @@ on:
   watch:
     types: [started]
   schedule:
-    # 每天 23:47 UTC（北京时间 07:47）运行一次（避开整点高峰）
-    - cron: '47 23 * * *'
+    # 每天 20:47 UTC（北京时间 04:47）运行一次（避开整点高峰）。
+    # GitHub 队列拥堵时 scheduled 触发会延迟 2~4 小时，提前到这个时间
+    # 才能保证实际运行在早上 9 点（01:00 UTC）之前完成。
+    - cron: '47 20 * * *'
   workflow_dispatch:
 
 jobs:
