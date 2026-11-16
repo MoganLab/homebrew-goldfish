@@ -5,8 +5,8 @@ class Goldfish < Formula
   # arm64 macOS 在下面的 on_macos > on_arm 中覆盖为预编译二进制。
   # 注：Homebrew 规则下只有 on_macos/on_arm 能覆盖 url，on_intel/on_linux 不能，
   # 故顶层必须用跨平台成立的源码包，arm64 二进制走覆盖。
-  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.58.tar.gz"
-  sha256 "2d9e40fd481b8e20ee3a21332fb81b8d9af49464ea81c7f9663e76bd33d0e910"
+  url "https://github.com/MoganLab/goldfish/archive/refs/tags/v18.11.59.tar.gz"
+  sha256 "34003cde301ba153a04f54cfe77f5db3ee00d64c0768fce4f5d960c65d0ffa3f"
   license "Apache-2.0"
 
   # 让 brew 用 GitHub 最新 release 来探测版本。
@@ -22,8 +22,8 @@ class Goldfish < Formula
   # Intel Mac 在同一 block 的 on_intel 里声明从源码编译所需的构建依赖。
   on_macos do
     on_arm do
-      url "https://github.com/MoganLab/goldfish/releases/download/v18.11.58/goldfish-scheme-arm64-v18.11.58-darwin.tar.gz"
-      sha256 "4b0fdcd911eb4a8c845b2cbe7d175cb0432f8ca214b2dd0e551d0ea776bcfa16"
+      url "https://github.com/MoganLab/goldfish/releases/download/v18.11.59/goldfish-scheme-arm64-v18.11.59-darwin.tar.gz"
+      sha256 "f388d9e0313964b782087c324cc89c166871d2ec3b1482a99b90312c0c64eaf0"
     end
     on_intel do
       depends_on "cmake" => :build # 用于编译 cpr, json_schema_validator 等依赖
